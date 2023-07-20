@@ -1,0 +1,12 @@
+fn main() {
+    let xi : i32 = 4;
+    let xf : f32 = 4.2;
+    let y : func<i32, f32> -> = fn (a, b) {
+        let c : i8 = 2;
+        let d : i32 = a as i32;
+        let e : f32 = (d as f32) * b;
+        return e;
+    };
+    let z : f32 = y(xi, xf);
+    print(z);
+}

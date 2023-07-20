@@ -1,0 +1,4 @@
+fn main() {
+    let xi : i32 = 4;
+    print(xi);
+}
