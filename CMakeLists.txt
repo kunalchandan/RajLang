@@ -11,6 +11,7 @@ set(SOURCES
 
 # Set header files
 set(HEADERS
+    src/Lexer.hpp
 )
 
 
