@@ -1,4 +1,4 @@
-fn main() {
+func main() {
     let mi : map<i32, i32> = [
         1 : 1,
         4 : 16,

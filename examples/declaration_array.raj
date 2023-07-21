@@ -1,4 +1,4 @@
-fn main() {
+func main() {
     let ai : array<i32> = [1, 4, 66];
     print(ai);
 }
