@@ -12,17 +12,18 @@ stateDiagram-v2
     Comment
     Other
 
-    Space --> Space   : [\t|\ n| ]
+    Space --> Space   : [\t|\ n| |+|*|/|-|(|)|[|]|{|}]
     Space --> Number  : [0-9]
     Space --> Word    : [a-z|_|A-Z]
     Space --> Comment : [#]
 
+    Word  --> Space   : [\t|\ n| |+|*|/|-|(|)|[|]|{|}]
     Word  --> Word    : [a-z|_|A-Z|0-9]
     Word  --> Comment : [#]
 
-    Number --> Space  : [\t|\ n| ]
+    Number --> Space  : [\t|\ n| |+|*|/|-|(|)|[|]|{|}]
     Number --> Comment: [#]
-    Number --> Word   : [ |+|*|/|-|]
+    Number --> Word   : [a-z|A-Z]
     Number --> Number : [0-9|.|e|E]
 
     Comment --> Space : [\ n]
