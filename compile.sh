@@ -1,0 +1,1 @@
+cmake ./ && make && echo -e "\e[32m ------- Compile Succeeded ------- \e[0m \n\n" && ./raj

@@ -5,7 +5,7 @@ BasedOnStyle:  WebKit
 TabWidth:        4
 IndentWidth:     4
 UseTab:          Never
-ColumnLimit: 100
+ColumnLimit: 120
 
 # Other languages JavaScript, Proto
 
@@ -48,7 +48,7 @@ BreakBeforeBraces: Custom
 BraceWrapping: {
     AfterClass: 'false'
     AfterControlStatement: 'false'
-    AfterEnum : 'true'
+    AfterEnum : 'false'
     AfterFunction : 'false'
     AfterNamespace : 'true'
     AfterStruct : 'true'
