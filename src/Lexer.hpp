@@ -21,6 +21,7 @@ enum class LexerStates {
     Word,
     Number,
     Comment,
+    Other,
 };
 
 enum class LexemeClass {
@@ -37,9 +38,9 @@ enum class LexemeClass {
     IntegerLiteral, // e.g. 153
     FloatLiteral, // e.g. 15.3
 
-    Integer, // e.g. i1, i8, i16, i32, i64
-    UInteger, // e.g. u1, u8, u16, u32, u64
-    Float, // e.g. f32, f64
+    IntegerType, // e.g. i1, i8, i16, i32, i64
+    UIntegerType, // e.g. u1, u8, u16, u32, u64
+    FloatType, // e.g. f32, f64
     Function, // e.g. func
 
     SemiColon, // ;
@@ -54,6 +55,8 @@ enum class LexemeClass {
     SquareR, // ]
     ParenL, // (
     ParenR, // )
+    ABrackL, // <
+    ABrackR, // >
 };
 
 class LexingStateMachine {
