@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 17)
 # Set source files
 set(SOURCES
     src/raj.cpp
+    src/Lexer.cpp
 )
 
 # Set header files
@@ -29,6 +30,8 @@ add_executable(raj ${SOURCES} ${HEADERS})
 target_include_directories(raj
     PRIVATE include/Catch/single_include/
     PRIVATE include/CLI11/include/
+    PRIVATE include/magic_enum/include/
+
 )
 # Set include directories
 target_include_directories(rajTests PRIVATE include)
