@@ -18,13 +18,11 @@ int main() {
 
     std::vector<SourceCode> raw_file = read_raw_file(source_files);
     for(const auto& file : raw_file) {
-        // std::cout << "file.path: " << file.path << std::endl;
-        // std::cout << "file.raw_document: " << file.raw_document << std::endl;
         std::vector<Lexeme> lexemes = lex_file(file);
 
-        std::cout << std::endl << "Lexemes Identified: " << std::endl;
+        std::clog << std::endl << "Lexemes Identified: " << std::endl;
         for(const auto& lex : lexemes) {
-            std::cout << lex.tokens << " " << magic_enum::enum_name(lex.lexeme_type) << std::endl;
+            std::clog << lex.tokens << " " << magic_enum::enum_name(lex.lexeme_type) << std::endl;
         }
     }
 

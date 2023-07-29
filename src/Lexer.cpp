@@ -6,7 +6,7 @@ SourceCode::SourceCode() {
     this->raw_document = "";
 }
 SourceCode::SourceCode(std::string filename, std::string content) {
-    std::cout << "Initializing SourceCode: " << filename << std::endl;
+    std::clog << "Initializing SourceCode: " << filename << std::endl;
     this->path         = filename;
     this->raw_document = content;
 }
@@ -112,7 +112,6 @@ Lexeme::Lexeme(std::string tokens) {
 
 Lexeme::~Lexeme() { }
 
-
 std::vector<SourceCode> read_raw_file(std::vector<std::filesystem::path> filepaths) {
     // Read every single file in the filepaths and append them to a vector
     // mapping of filepaths and their raw content
@@ -143,8 +142,6 @@ std::vector<Lexeme> lex_file(SourceCode file) {
     std::string         accumulator = "";
 
     for(const auto& ch : file.raw_document) {
-
-        std::cout << ch;
         // Per character do Lexing
         // lsm.consume(ch);
         switch(lsm.state) {
