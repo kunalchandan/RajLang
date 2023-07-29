@@ -6,24 +6,14 @@ SourceCode::SourceCode() {
     this->raw_document = "";
 }
 SourceCode::SourceCode(std::string filename, std::string content) {
+    std::cout << "Initializing SourceCode: " << filename << std::endl;
     this->path         = filename;
     this->raw_document = content;
 }
 SourceCode::~SourceCode() { }
 
-std::map<LexerStates, LexerStates> LexingStateMachine::transition_table = {
-    {LexerStates::Space, LexerStates::Space},
-    {LexerStates::Space, LexerStates::Space},
-    {LexerStates::Space, LexerStates::Space},
-    {LexerStates::Space, LexerStates::Space},
-    {LexerStates::Space, LexerStates::Space},
-    {LexerStates::Space, LexerStates::Space},
-    {LexerStates::Space, LexerStates::Space},
-    {LexerStates::Space, LexerStates::Space},
-};
-
 LexingStateMachine::LexingStateMachine() {
-    this->state = LexerStates::Space;
+    this->state = LexerStates::Other;
 }
 
 LexingStateMachine::~LexingStateMachine() { }
@@ -33,14 +23,14 @@ Lexeme::Lexeme(std::string tokens) {
     this->tokens = tokens;
     // Logic for interpreting the type of the lexeme
     std::regex all_space("\\s+");
-    std::regex is_integer_literal("(\+|-)[0-9]+");
+    std::regex is_integer_literal("(\\+|-)?[0-9]+");
     std::regex is_float_literal("[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)");
-    std::regex is_type("(i(1|8|16|32|64)|(u(1|8|16|32|64))|(f(32|64))");
+    std::regex is_type("(i(1|8|16|32|64))|(u(1|8|16|32|64))|(f(32|64))");
     std::regex is_math_operator("[+\\-*/%]");
     std::regex is_comment("#[^\n]*");
     std::regex is_identifier("[_a-zA-Z][_a-zA-Z0-9]*");
 
-    if(std::regex_match(tokens, all_space)) {
+    if(std::regex_match(tokens, all_space) || tokens == "") {
         this->lexeme_type = LexemeClass::Space;
     }
     else if(std::regex_match(tokens, is_integer_literal)) {
@@ -51,13 +41,13 @@ Lexeme::Lexeme(std::string tokens) {
     }
     else if(std::regex_match(tokens, is_type)) {
         if(tokens[0] == 'i') {
-            this->lexeme_type = LexemeClass::Integer;
+            this->lexeme_type = LexemeClass::IntegerType;
         }
         else if(tokens[0] == 'u') {
-            this->lexeme_type = LexemeClass::UInteger;
+            this->lexeme_type = LexemeClass::UIntegerType;
         }
         else if(tokens[0] == 'f') {
-            this->lexeme_type = LexemeClass::Float;
+            this->lexeme_type = LexemeClass::FloatType;
         }
     }
     else if(tokens == "let") {
@@ -83,6 +73,12 @@ Lexeme::Lexeme(std::string tokens) {
     }
     else if(tokens == ")") {
         this->lexeme_type = LexemeClass::ParenR;
+    }
+    else if(tokens == "<") {
+        this->lexeme_type = LexemeClass::ABrackL;
+    }
+    else if(tokens == ">") {
+        this->lexeme_type = LexemeClass::ABrackR;
     }
     else if(tokens == ";") {
         this->lexeme_type = LexemeClass::SemiColon;
@@ -110,6 +106,7 @@ Lexeme::Lexeme(std::string tokens) {
     }
     else {
         std::cerr << "Lexeme not recognized: " << tokens << std::endl;
+        std::cerr << "\033[1;31m^" << tokens << "^\033[0m Length: " << tokens.length() << std::endl;
     }
 }
 
