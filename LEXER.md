@@ -1,5 +1,7 @@
 # Lexer
 
+The lexer works in 2 layers. The first outlined with a state machine here builds an accumulator and passes that to the second layer. This second layer matches the accumulator to a variety of regexes that form the actual tokens.
+
 ```mermaid
 ---
 title: Layer 1 of Lexer
@@ -38,3 +40,5 @@ stateDiagram-v2
     Other --> Other   : [Anything else]
 
 ```
+
+To further expand the kinds of tokens like adding double operand operators, the logic within the first layer should be altered first to accumulate multiple operators. Currently non alphanumeric characters are only accumulated as 1 character.
