@@ -1,5 +1,9 @@
 
 #include "Lexer.hpp"
+#include <cstddef>
+#include <cstdlib>
+#include <iostream>
+#include <stdexcept>
 
 SourceCode::SourceCode() {
     this->path         = "/null/path";
@@ -107,6 +111,8 @@ Lexeme::Lexeme(std::string tokens) {
     else {
         std::cerr << "Lexeme not recognized: " << tokens << std::endl;
         std::cerr << "\033[1;31m^" << tokens << "^\033[0m Length: " << tokens.length() << std::endl;
+        std::cerr << "Throwing..." << std::endl;
+        throw std::runtime_error("Lexeme not recognized");
     }
 }
 
@@ -141,120 +147,135 @@ std::vector<Lexeme> lex_file(SourceCode file) {
     LexingStateMachine  lsm         = LexingStateMachine();
     std::string         accumulator = "";
 
-    for(const auto& ch : file.raw_document) {
+    size_t line_number   = 1;
+    size_t column_number = 1;
+    for(size_t x = 0; x < file.raw_document.length(); x++) {
+        const char ch = file.raw_document[x];
+        column_number++;
+        if(ch == '\n') {
+            line_number++;
+            column_number = 1;
+        }
+
         // Per character do Lexing
-        // lsm.consume(ch);
-        switch(lsm.state) {
-        case LexerStates::Space:
-            if(ch == ' ' || ch == '\n' || ch == '\t') {
-                lsm.state = LexerStates::Space;
-                accumulator += ch;
-            }
-            else if(std::isdigit(ch) || ch == '.') {
-                lsm.state = LexerStates::Number;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            else if(ch == '#') {
-                lsm.state = LexerStates::Comment;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            else if(std::isalpha(ch) || ch == '_') {
-                lsm.state = LexerStates::Word;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            else {
-                lsm.state = LexerStates::Other;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            break;
+        try {
+            switch(lsm.state) {
+            case LexerStates::Space:
+                if(ch == ' ' || ch == '\n' || ch == '\t') {
+                    lsm.state = LexerStates::Space;
+                    accumulator += ch;
+                }
+                else if(std::isdigit(ch) || ch == '.') {
+                    lsm.state = LexerStates::Number;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                else if(ch == '#') {
+                    lsm.state = LexerStates::Comment;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                else if(std::isalpha(ch) || ch == '_') {
+                    lsm.state = LexerStates::Word;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                else {
+                    lsm.state = LexerStates::Other;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                break;
 
-        case LexerStates::Word:
-            if(std::isalnum(ch) || ch == '_') {
-                lsm.state = LexerStates::Word;
-                accumulator += ch;
-            }
-            else if(ch == '#') {
-                lsm.state = LexerStates::Comment;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            else {
-                lsm.state = LexerStates::Other;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            break;
+            case LexerStates::Word:
+                if(std::isalnum(ch) || ch == '_') {
+                    lsm.state = LexerStates::Word;
+                    accumulator += ch;
+                }
+                else if(ch == '#') {
+                    lsm.state = LexerStates::Comment;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                else {
+                    lsm.state = LexerStates::Other;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                break;
 
-        case LexerStates::Number:
-            if(std::isdigit(ch) || ch == '.' || ch == 'e' || ch == 'E') {
-                // Special case for floating point numbers
-                lsm.state = LexerStates::Number;
-                accumulator += ch;
-            }
-            else if(ch == ' ' || ch == '\n' || ch == '\t') {
-                lsm.state = LexerStates::Space;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            else if(ch == '#') {
-                lsm.state = LexerStates::Comment;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            else if(std::isalpha(ch) || ch == '_') {
-                // token converted to word
-                lsm.state = LexerStates::Word;
-                accumulator += ch;
-            }
-            else {
-                lsm.state = LexerStates::Other;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            break;
+            case LexerStates::Number:
+                if(std::isdigit(ch) || ch == '.' || ch == 'e' || ch == 'E') {
+                    // Special case for floating point numbers
+                    lsm.state = LexerStates::Number;
+                    accumulator += ch;
+                }
+                else if(ch == ' ' || ch == '\n' || ch == '\t') {
+                    lsm.state = LexerStates::Space;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                else if(ch == '#') {
+                    lsm.state = LexerStates::Comment;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                else if(std::isalpha(ch) || ch == '_') {
+                    // token converted to word
+                    lsm.state = LexerStates::Word;
+                    accumulator += ch;
+                }
+                else {
+                    lsm.state = LexerStates::Other;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                break;
 
-        case LexerStates::Comment:
-            if(ch == '\n') {
-                lsm.state = LexerStates::Space;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
+            case LexerStates::Comment:
+                if(ch == '\n') {
+                    lsm.state = LexerStates::Space;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                else {
+                    lsm.state = LexerStates::Comment;
+                    accumulator += ch;
+                }
+                break;
+            case LexerStates::Other:
+                if(ch == ' ' || ch == '\n' || ch == '\t') {
+                    lsm.state = LexerStates::Space;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                else if(ch == '#') {
+                    lsm.state = LexerStates::Comment;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                else if(std::isdigit(ch) || ch == '.') {
+                    lsm.state = LexerStates::Number;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                else if(std::isalpha(ch) || ch == '_') {
+                    lsm.state = LexerStates::Word;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                else {
+                    lsm.state = LexerStates::Other;
+                    lexemes.push_back(Lexeme(accumulator));
+                    accumulator = ch;
+                }
+                break;
             }
-            else {
-                lsm.state = LexerStates::Comment;
-                accumulator += ch;
-            }
-            break;
-        case LexerStates::Other:
-            if(ch == ' ' || ch == '\n' || ch == '\t') {
-                lsm.state = LexerStates::Space;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            else if(ch == '#') {
-                lsm.state = LexerStates::Comment;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            else if(std::isdigit(ch) || ch == '.') {
-                lsm.state = LexerStates::Number;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            else if(std::isalpha(ch) || ch == '_') {
-                lsm.state = LexerStates::Word;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            else {
-                lsm.state = LexerStates::Other;
-                lexemes.push_back(Lexeme(accumulator));
-                accumulator = ch;
-            }
-            break;
+        }
+        catch(std::runtime_error(err)) {
+            std::cerr << err.what() << std::endl;
+            std::cerr << "Unrecognized lexeme: " << ch << std::endl;
+            std::cerr << "Failure on line " << file.path << ":" << line_number << std::endl;
         }
     }
     return lexemes;
