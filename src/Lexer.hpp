@@ -1,5 +1,6 @@
 #include <algorithm>
-#include <map>
+#include <filesystem>
+#include <fstream>
 #include <regex>
 
 #include <iostream>
@@ -63,8 +64,6 @@ class LexingStateMachine {
 public:
     LexerStates state;
 
-    static std::map<LexerStates, LexerStates> transition_table;
-
     LexingStateMachine();
     ~LexingStateMachine();
 };
@@ -77,3 +76,6 @@ public:
     Lexeme(std::string tokens);
     ~Lexeme();
 };
+
+std::vector<Lexeme>     lex_file(SourceCode file);
+std::vector<SourceCode> read_raw_file(std::vector<std::filesystem::path> filepaths);
