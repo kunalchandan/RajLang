@@ -1,0 +1,24 @@
+func add_numbers(x: i32, y: i32) -> i32 {
+    return x + y;
+}
+
+func subtraction_numbers(x: i32, y: i32) -> i32 {
+    return x - y;
+}
+
+func call_functions() -> i32 {
+    func internal_add(xa: i32, ya: i32) -> i32 {
+        return xa + ya;
+    }
+    return internal_add(1, 2) + add_numbers(1, 2) + subtraction_numbers(1, 2);
+}
+
+func main() {
+    let aa : i32 = 4;
+    let bb : i32 = 4;
+    let cc : i32 = add_numbers(aa, bb);
+    let dd : i32 = subtraction_numbers(aa, bb);
+    print(call_functions());
+    print(cc);
+    print(dd);
+}
