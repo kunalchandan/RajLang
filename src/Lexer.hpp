@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <regex>
@@ -9,11 +10,11 @@
 class SourceCode {
 public:
     /* Raw data for the source code, contains Path and Source */
-    std::string path;
-    std::string raw_document;
+    std::filesystem::path path;
+    std::string           raw_document;
 
     SourceCode();
-    SourceCode(std::string filename, std::string content);
+    SourceCode(std::filesystem::path filename, std::string content);
     ~SourceCode();
 };
 
@@ -77,5 +78,14 @@ public:
     ~Lexeme();
 };
 
-std::vector<Lexeme>     lex_file(SourceCode file);
-std::vector<SourceCode> read_raw_file(std::vector<std::filesystem::path> filepaths);
+class Location {
+public:
+    size_t                line;
+    size_t                column;
+    std::filesystem::path file;
+    Location(size_t line, size_t column, std::string file);
+    ~Location();
+};
+
+std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file);
+std::vector<SourceCode>                   read_raw_file(std::vector<std::filesystem::path> filepaths);
