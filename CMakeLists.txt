@@ -31,6 +31,7 @@ target_include_directories(raj
     PRIVATE include/Catch/single_include/
     PRIVATE include/CLI11/include/
     PRIVATE include/magic_enum/include/
+    PRIVATE include/tree.hh/src/
 
 )
 # Set include directories
