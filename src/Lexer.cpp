@@ -1,12 +1,14 @@
 
-#include "Lexer.hpp"
 #include <cstddef>
 #include <cstdlib>
+
 #include <iostream>
 #include <stdexcept>
 #include <string>
 #include <tuple>
 #include <vector>
+
+#include "Lexer.hpp"
 
 SourceCode::SourceCode() {
     LOG_INFO("Initializing Null Source Code");

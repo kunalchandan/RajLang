@@ -1,0 +1,13 @@
+digraph G {
+0 [label=root];
+1 [label=func];
+2 [label=func];
+3 [label=func];
+4 [label=func];
+5 [label=func];
+0->1  [label=""];
+0->2  [label=""];
+0->3  [label=""];
+3->4  [label=""];
+0->5  [label=""];
+}

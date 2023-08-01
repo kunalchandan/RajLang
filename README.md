@@ -45,5 +45,7 @@ git clone https://github.com/CLIUtils/CLI11
 # Enum stuff
 git clone https://github.com/Neargye/magic_enum
 # Trees
-git clone https://github.com/kpeeters/tree.hh
+git clone https://github.com/boostorg/boost
+cd boost
+git submodule update --init
 ```
