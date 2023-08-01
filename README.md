@@ -36,12 +36,14 @@ Or use the executable on a target file.
 Using *Catch* because it's header only.
 
 ```bash
-git clone this
-cd this/include/
+git clone https://github.com/kunalchandan/RajLang
+cd RajLang/include/
 # Testing
 git clone https://github.com/log4cplus/Catch
 # Command Line parsing
 git clone https://github.com/CLIUtils/CLI11
 # Enum stuff
 git clone https://github.com/Neargye/magic_enum
+# Trees
+git clone https://github.com/kpeeters/tree.hh
 ```
