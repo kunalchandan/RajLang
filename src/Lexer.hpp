@@ -1,11 +1,15 @@
 #include <algorithm>
-#include <cstddef>
 #include <filesystem>
 #include <fstream>
-#include <regex>
 
-#include <iostream>
+// String Manipulation
+#include <regex>
 #include <string>
+
+#include <cstddef>
+
+// Logging
+#include "logging.hpp"
 
 class SourceCode {
 public:
@@ -23,6 +27,7 @@ enum class LexerStates {
     Word,
     Number,
     Comment,
+    Operator,
     Other,
 };
 
@@ -74,8 +79,13 @@ public:
     // Holds each lexeme which is an enum of type of lexeme and corresponding data
     LexemeClass lexeme_type;
     std::string tokens;
+    Lexeme();
     Lexeme(std::string tokens);
     ~Lexeme();
+    bool operator==(const Lexeme& rhs) const {
+        return rhs.lexeme_type == this->lexeme_type;
+        return rhs.tokens == this->tokens;
+    }
 };
 
 class Location {
@@ -88,4 +98,4 @@ public:
 };
 
 std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file);
-std::vector<SourceCode>                   read_raw_file(std::vector<std::filesystem::path> filepaths);
+std::vector<SourceCode> read_raw_file(std::vector<std::filesystem::path> filepaths);

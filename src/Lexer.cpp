@@ -6,13 +6,15 @@
 #include <stdexcept>
 #include <string>
 #include <tuple>
+#include <vector>
 
 SourceCode::SourceCode() {
+    LOG_INFO("Initializing Null Source Code");
     this->path         = "/null/path";
     this->raw_document = "";
 }
 SourceCode::SourceCode(std::filesystem::path filename, std::string content) {
-    std::clog << "Initializing SourceCode: " << filename << std::endl;
+    LOG_INFO("Initializing Source Code: " + std::string(filename));
     this->path         = filename;
     this->raw_document = content;
 }
@@ -23,6 +25,11 @@ LexingStateMachine::LexingStateMachine() {
 }
 
 LexingStateMachine::~LexingStateMachine() { }
+
+Lexeme::Lexeme() {
+    this->lexeme_type = LexemeClass::Space;
+    this->tokens      = "";
+}
 
 Lexeme::Lexeme(std::string tokens) {
     // Interpret the Lexeme class from the tokens given
@@ -111,9 +118,9 @@ Lexeme::Lexeme(std::string tokens) {
         this->lexeme_type = LexemeClass::Identifier;
     }
     else {
-        std::cerr << "Lexeme not recognized: " << tokens << std::endl;
-        std::cerr << "\033[1;31m^" << tokens << "^\033[0m Length: " << tokens.length() << std::endl;
-        std::cerr << "Throwing..." << std::endl;
+        LOG_ERROR("Lexeme not recognized: " + tokens);
+        LOG_ERROR("Length: " << (tokens.length()));
+        LOG_ERROR("Throwing...");
         throw std::runtime_error("Lexeme not recognized");
     }
 }
@@ -126,30 +133,44 @@ Location::Location(size_t line, size_t column, std::string file) {
     this->file   = file;
 }
 
+Location::~Location() { }
+
 std::vector<SourceCode> read_raw_file(std::vector<std::filesystem::path> filepaths) {
     // Read every single file in the filepaths and append them to a vector
     // mapping of filepaths and their raw content
     std::vector<SourceCode> raw_source;
     for(const auto& filename : filepaths) {
-        std::clog << "Reading source file: " << filename << std::endl;
+        LOG_INFO("Reading source file: " + filename.string());
         auto extension = filename.extension().string();
         if(extension != ".raj" && extension != ".jar") {
-            std::cerr << "\033[1;31m    File: " << filename;
-            std::cerr << " is not of correct file extension [.raj | .jar] \033[0m" << std::endl;
-            std::cerr << "\033[1;31m    Extension is `" << extension << "`\033[0m" << std::endl;
-            // std::cerr << "\033[1;31m Exiting... \033[0m" << std::endl;
+            LOG_ERROR("File: " << filename << "is not of correct file extension [.raj | .jar]");
+            LOG_ERROR("Extension is `" << extension << "`");
         }
 
         std::ifstream file(filename);
         if(!file) {
-            std::cerr << "\033[1;31m    Error opening file \033[0m" << filename << std::endl;
+            LOG_ERROR("Error opening file" << filename);
         }
-        std::string content((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
+        std::string content((std::istreambuf_iterator<char>(file)),
+                            (std::istreambuf_iterator<char>()));
         file.close();
-        raw_source.push_back(SourceCode(filename, content));
+        raw_source.push_back(SourceCode(filename, content + "\n"));
     }
     return raw_source;
 }
+
+bool is_operator(int ch) {
+    std::vector<char> single_ops = {
+        '+', '-', '*', '/', '%', '=', '!', '&', '|', '^', '<', '>', '(', ')', '[', ']', '{', '}'};
+    return (std::find(single_ops.begin(), single_ops.end(), ch) != single_ops.end());
+}
+
+bool is_double_operator(std::string op) {
+    std::vector<std::string> double_ops = {
+        "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "%=", "&&", "||", "^^"};
+    return (std::find(double_ops.begin(), double_ops.end(), op) != double_ops.end());
+}
+
 std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file) {
     std::vector<std::tuple<Lexeme, Location>> lexemes;
     LexingStateMachine                        lsm         = LexingStateMachine();
@@ -189,6 +210,11 @@ std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file) {
                     lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
                     accumulator = ch;
                 }
+                else if(is_operator(ch)) {
+                    lsm.state = LexerStates::Operator;
+                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    accumulator = ch;
+                }
                 else {
                     lsm.state = LexerStates::Other;
                     lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
@@ -197,12 +223,22 @@ std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file) {
                 break;
 
             case LexerStates::Word:
-                if(std::isalnum(ch) || ch == '_') {
+                if(ch == ' ' || ch == '\n' || ch == '\t') {
+                    lsm.state = LexerStates::Space;
+                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    accumulator = ch;
+                }
+                else if(std::isalnum(ch) || ch == '_') {
                     lsm.state = LexerStates::Word;
                     accumulator += ch;
                 }
                 else if(ch == '#') {
                     lsm.state = LexerStates::Comment;
+                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    accumulator = ch;
+                }
+                else if(is_operator(ch)) {
+                    lsm.state = LexerStates::Operator;
                     lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
                     accumulator = ch;
                 }
@@ -234,6 +270,11 @@ std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file) {
                     lsm.state = LexerStates::Word;
                     accumulator += ch;
                 }
+                else if(is_operator(ch)) {
+                    lsm.state = LexerStates::Operator;
+                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    accumulator = ch;
+                }
                 else {
                     lsm.state = LexerStates::Other;
                     lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
@@ -250,6 +291,43 @@ std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file) {
                 else {
                     lsm.state = LexerStates::Comment;
                     accumulator += ch;
+                }
+                break;
+
+            case LexerStates::Operator:
+                if(is_double_operator(accumulator)) {
+                    lsm.state = LexerStates::Operator;
+                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    accumulator = ch;
+                }
+                // else if(is_operator(ch)) { // Fallback for weirder operators?
+                //     lsm.state = LexerStates::Operator;
+                //     accumulator += ch;
+                // }
+                else if(ch == ' ' || ch == '\n' || ch == '\t') {
+                    lsm.state = LexerStates::Space;
+                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    accumulator = ch;
+                }
+                else if(std::isdigit(ch) || ch == '.') {
+                    lsm.state = LexerStates::Number;
+                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    accumulator = ch;
+                }
+                else if(std::isalpha(ch) || ch == '_') {
+                    lsm.state = LexerStates::Word;
+                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    accumulator = ch;
+                }
+                else if(ch == '#') {
+                    lsm.state = LexerStates::Comment;
+                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    accumulator = ch;
+                }
+                else {
+                    lsm.state = LexerStates::Other;
+                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    accumulator = ch;
                 }
                 break;
             case LexerStates::Other:
@@ -273,6 +351,11 @@ std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file) {
                     lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
                     accumulator = ch;
                 }
+                else if(is_operator(ch)) {
+                    lsm.state = LexerStates::Operator;
+                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    accumulator = ch;
+                }
                 else {
                     lsm.state = LexerStates::Other;
                     lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
@@ -282,9 +365,10 @@ std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file) {
             }
         }
         catch(std::runtime_error(err)) {
-            std::cerr << err.what() << std::endl;
-            std::cerr << "Unrecognized lexeme: " << ch << std::endl;
-            std::cerr << "Failure on line " << file.path << ":" << line_number << std::endl;
+            LOG_ERROR(err.what());
+            LOG_ERROR("Unrecognized lexeme: " << accumulator);
+            LOG_ERROR("Failure on line " << file.path << ":" << line_number);
+            accumulator = ch;
         }
     }
     return lexemes;
