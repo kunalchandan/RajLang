@@ -135,6 +135,11 @@ Location::Location(size_t line, size_t column, std::string file) {
     this->file   = file;
 }
 
+std::ostream& operator<<(std::ostream& os, const Location& loc) {
+    os << loc.file << ":" << loc.line << ":" << loc.column << std::endl;
+    return os;
+}
+
 Location::~Location() { }
 
 std::vector<SourceCode> read_raw_file(std::vector<std::filesystem::path> filepaths) {

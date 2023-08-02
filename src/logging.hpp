@@ -1,6 +1,6 @@
-#include <iostream>
-
 #pragma once
+
+#include <iostream>
 
 // Logging levels
 enum class LogLevel { DEBUG, INFO, WARNING, ERROR };
