@@ -452,3 +452,17 @@ std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file) {
     }
     return lexemes;
 }
+
+std::vector<std::tuple<Lexeme, Location>>
+filter_spaces(std::vector<std::tuple<Lexeme, Location>> lexemes) {
+    // Filter out spaces using the modern C++ STL
+    // https://stackoverflow.com/a/21204788/8679866
+    std::vector<std::tuple<Lexeme, Location>> filtered;
+    std::copy_if(lexemes.begin(),
+                 lexemes.end(),
+                 std::back_inserter(filtered),
+                 [](std::tuple<Lexeme, Location> i) {
+                     return std::get<0>(i).lexeme_type != LexemeClass::Space;
+                 });
+    return filtered;
+}

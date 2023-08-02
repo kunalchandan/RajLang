@@ -105,3 +105,5 @@ public:
 
 std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file);
 std::vector<SourceCode> read_raw_file(std::vector<std::filesystem::path> filepaths);
+std::vector<std::tuple<Lexeme, Location>>
+filter_spaces(std::vector<std::tuple<Lexeme, Location>> lexemes);
