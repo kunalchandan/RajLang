@@ -7,31 +7,26 @@ ASTNode::ASTNode() {
     this->_color    = "white";
 }
 
-ASTNode::ASTNode(ASTNodeType type, std::string name, Location location) {
+ASTNode::ASTNode(ASTNodeType type, std::string name, const Location& location) {
     this->node_type = type;
-    this->name      = name;
+    this->name      = std::move(name);
     this->location  = location;
     this->_color    = _get_graph_color();
 }
 
-std::string ASTNode::_get_graph_color() {
+std::string ASTNode::_get_graph_color() const {
     // Pick some random light colors
     switch(this->node_type) {
     case ASTNodeType::Root:
         return "#000000";
-        break;
     case ASTNodeType::Function:
         return "#6496E1";
-        break;
     case ASTNodeType::Declaration:
         return "#96c57a";
-        break;
     case ASTNodeType::Expression:
         return "#ffa55b";
-        break;
     case ASTNodeType::Argument:
         return "#e278e6";
-        break;
     case ASTNodeType::Type:
         return "#47dfb9";
         break;
@@ -39,10 +34,10 @@ std::string ASTNode::_get_graph_color() {
     return "white";
 }
 
-ASTNode::~ASTNode() { }
+ASTNode::~ASTNode() = default;
 
 void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
-    LOG_INFO("Generating AST");
+    LOG_INFO("Generating AST")
 
     Tree                    ast;
     Tree::vertex_descriptor root = boost::add_vertex(ast);
@@ -56,7 +51,7 @@ void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
         Lexeme   lexeme = std::get<0>(lexemes[x]);
         Location loc    = std::get<1>(lexemes[x]);
 
-        LOG_DEBUG("Lexeme: " << lexeme.tokens);
+        LOG_DEBUG("Lexeme: " << lexeme.tokens)
         if(lexeme.lexeme_type == LexemeClass::Function) {
             // Consume the following tokens that we expect
             // Identifier
@@ -68,18 +63,18 @@ void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
             Tree::vertex_descriptor function_node        = boost::add_vertex(ast);
             Lexeme                  expecting_identifier = std::get<0>(lexemes[x + 1]);
             if(expecting_identifier.lexeme_type != LexemeClass::Identifier) {
-                LOG_ERROR("Expected Identifier in argument, recieved "
+                LOG_ERROR("Expected Identifier in argument, received "
                           << expecting_identifier.tokens << " of type "
                           << magic_enum::enum_name(expecting_identifier.lexeme_type) << " at "
-                          << std::get<1>(lexemes[x + 1]));
+                          << std::get<1>(lexemes[x + 1]))
                 return; // Could generate something random?
             }
-            Lexeme expecting_parenl = std::get<0>(lexemes[x + 2]);
-            if(expecting_parenl.lexeme_type != LexemeClass::ParenL) {
-                LOG_ERROR("Expected ParenL in argument, recieved "
-                          << expecting_parenl.tokens << " of type "
-                          << magic_enum::enum_name(expecting_parenl.lexeme_type) << " at "
-                          << std::get<1>(lexemes[x + 2]));
+            Lexeme expecting_parenL = std::get<0>(lexemes[x + 2]);
+            if(expecting_parenL.lexeme_type != LexemeClass::ParenL) {
+                LOG_ERROR("Expected ParenL in argument, received "
+                          << expecting_parenL.tokens << " of type "
+                          << magic_enum::enum_name(expecting_parenL.lexeme_type) << " at "
+                          << std::get<1>(lexemes[x + 2]))
                 return;
             }
 
@@ -90,7 +85,9 @@ void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
                     return std::get<0>(x).lexeme_type == LexemeClass::ParenR;
                 });
             if(location_parenR == lexemes.end()) {
-                LOG_ERROR("Expected ParenR");
+                LOG_ERROR("Expected ParenR ')' for function after arguments "
+                          << expecting_identifier.tokens << " at location "
+                          << std::get<1>(lexemes[x + 1]))
                 return;
             }
             size_t index_parenR = location_parenR - lexemes.begin();
@@ -102,20 +99,20 @@ void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
                 // Colon
                 // Type
                 // Comma
-                Lexeme expecting_identifier = std::get<0>(lexemes[p]);
-                if(expecting_identifier.lexeme_type != LexemeClass::Identifier) {
-                    LOG_ERROR("Expected Identifier in argument, recieved "
-                              << expecting_identifier.tokens << " of type "
-                              << magic_enum::enum_name(expecting_identifier.lexeme_type) << " at "
-                              << std::get<1>(lexemes[p]));
+                Lexeme expecting_identifier_arg = std::get<0>(lexemes[p]);
+                if(expecting_identifier_arg.lexeme_type != LexemeClass::Identifier) {
+                    LOG_ERROR("Expected Identifier in argument, received "
+                              << expecting_identifier_arg.tokens << " of type "
+                              << magic_enum::enum_name(expecting_identifier_arg.lexeme_type)
+                              << " at " << std::get<1>(lexemes[p]))
                     return;
                 }
                 Lexeme expecting_colon = std::get<0>(lexemes[p + 1]);
                 if(expecting_colon.lexeme_type != LexemeClass::Colon) {
-                    LOG_ERROR("Expected Colon in argument, recieved "
+                    LOG_ERROR("Expected Colon in argument, received "
                               << expecting_colon.tokens << " of type "
                               << magic_enum::enum_name(expecting_colon.lexeme_type) << " at "
-                              << std::get<1>(lexemes[p + 1]));
+                              << std::get<1>(lexemes[p + 1]))
                     return;
                 }
                 Lexeme expecting_type = std::get<0>(lexemes[p + 2]);
@@ -123,23 +120,22 @@ void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
                 if(expecting_type.lexeme_type != LexemeClass::FloatType &&
                    expecting_type.lexeme_type != LexemeClass::IntegerType &&
                    expecting_type.lexeme_type != LexemeClass::UIntegerType) {
-                    LOG_ERROR("Expected Type in argument, recieved "
+                    LOG_ERROR("Expected Type in argument, received "
                               << expecting_type.tokens << " of type "
                               << magic_enum::enum_name(expecting_type.lexeme_type) << " at "
-                              << std::get<1>(lexemes[p + 2]));
+                              << std::get<1>(lexemes[p + 2]))
                     return;
                 }
                 // Can expect comma or ParenR
                 Lexeme expecting_comma = std::get<0>(lexemes[p + 3]);
                 if(expecting_comma.lexeme_type != LexemeClass::Comma && p + 3 != index_parenR) {
-                    LOG_ERROR("Expected Comma in argument, recieved "
+                    LOG_ERROR("Expected Comma in argument, received "
                               << expecting_comma.tokens << " of type "
                               << magic_enum::enum_name(expecting_comma.lexeme_type) << " at "
-                              << std::get<1>(lexemes[p + 3]));
+                              << std::get<1>(lexemes[p + 3]))
                     return;
                 }
-                arguments.push_back(
-                    std::make_tuple(expecting_identifier, expecting_colon, expecting_type));
+                arguments.emplace_back(expecting_identifier_arg, expecting_colon, expecting_type);
                 p += 4;
             }
 
@@ -174,7 +170,7 @@ void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
     //               << " id:" << ast[vd].id << " color:" << ast[vd].color << "\n";
     // }
     // Print the AST
-    LOG_INFO("AST Generated");
+    LOG_INFO("AST Generated")
     std::ofstream             outFile("tree_visualization.dot");
     boost::dynamic_properties dp;
     dp.property("label", boost::get(&ASTNode::name, ast));
@@ -184,5 +180,5 @@ void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
     dp.property("style", boost::get(&ASTNode::_style, ast));
     write_graphviz_dp(outFile, ast, dp);
     outFile.close();
-    LOG_INFO("AST Graph in tree_visualization.dot");
+    LOG_INFO("AST Graph in tree_visualization.dot")
 }
