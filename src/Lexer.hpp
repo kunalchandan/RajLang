@@ -43,6 +43,7 @@ enum class LexemeClass {
     Declaration, // let
     Assignment, // =
     Conditional, // if, else, ?
+    Return, // return
 
     IntegerLiteral, // e.g. 153
     FloatLiteral, // e.g. 15.3
@@ -57,6 +58,7 @@ enum class LexemeClass {
     Comma, // ,
 
     MathExpression, // +, -, /, *, %, ^
+    RightArrow, // ->
 
     CurlL, // {
     CurlR, // }
@@ -95,8 +97,10 @@ public:
     size_t                line;
     size_t                column;
     std::filesystem::path file;
+    Location();
     Location(size_t line, size_t column, std::string file);
     ~Location();
+    friend std::ostream& operator<<(std::ostream& os, const Location& loc);
 };
 
 std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file);

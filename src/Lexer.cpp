@@ -3,8 +3,11 @@
 #include <cstdlib>
 
 #include <iostream>
-#include <stdexcept>
+#include <regex>
 #include <string>
+
+#include <stdexcept>
+#include <sys/types.h>
 #include <tuple>
 #include <vector>
 
@@ -110,6 +113,12 @@ Lexeme::Lexeme(std::string tokens) {
     else if(tokens == "func") {
         this->lexeme_type = LexemeClass::Function;
     }
+    else if(tokens == "return") {
+        this->lexeme_type = LexemeClass::Return;
+    }
+    else if(tokens == "->") {
+        this->lexeme_type = LexemeClass::RightArrow;
+    }
     else if(std::regex_match(tokens, is_math_operator)) {
         this->lexeme_type = LexemeClass::MathExpression;
     }
@@ -128,6 +137,12 @@ Lexeme::Lexeme(std::string tokens) {
 }
 
 Lexeme::~Lexeme() { }
+
+Location::Location() {
+    this->line   = 0;
+    this->column = 0;
+    this->file   = "NULL_FILE.txt";
+}
 
 Location::Location(size_t line, size_t column, std::string file) {
     this->line   = line;
@@ -166,16 +181,73 @@ std::vector<SourceCode> read_raw_file(std::vector<std::filesystem::path> filepat
     return raw_source;
 }
 
-bool is_operator(int ch) {
-    std::vector<char> single_ops = {
-        '+', '-', '*', '/', '%', '=', '!', '&', '|', '^', '<', '>', '(', ')', '[', ']', '{', '}'};
-    return (std::find(single_ops.begin(), single_ops.end(), ch) != single_ops.end());
+std::string escape_regex(const std::string& input) {
+    std::string result;
+    for(char c : input) {
+        if(c == '\\' || c == '.' || c == '*' || c == '+' || c == '?' || c == '(' || c == ')' ||
+           c == '[' || c == ']' || c == '{' || c == '}' || c == '|' || c == '^' || c == '$' ||
+           c == '/') {
+            result.push_back('\\'); // Add an escape character before the special character
+        }
+        result.push_back(c);
+    }
+    return result;
 }
 
-bool is_double_operator(std::string op) {
-    std::vector<std::string> double_ops = {
-        "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "%=", "&&", "||", "^^"};
-    return (std::find(double_ops.begin(), double_ops.end(), op) != double_ops.end());
+std::string generate_regex_from_strings(const std::vector<std::string>& strings) {
+    std::string regexStr;
+    for(const auto& str : strings) {
+        if(!regexStr.empty()) {
+            regexStr += "|"; // Use the pipe symbol for alternation
+        }
+        regexStr += escape_regex(str);
+    }
+    return regexStr;
+}
+
+std::vector<std::tuple<Lexeme, Location>> generate_operator_lexemes(std::string s, Location loc) {
+    std::vector<std::string> ops = {
+        // Order matters here prefference is given to the first string
+        "||", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "%=", "&&",
+        "^^", "->", "<-", "+",  "-",  "*",  "/",  "%",  "=",  "!",  "&",
+        "|",  "^",  "<",  ">",  "(",  ")",  "[",  "]",  "{",  "}",  "\'",
+    };
+
+    std::regex                                 words_regex(generate_regex_from_strings(ops));
+    std::regex_iterator<std::string::iterator> iter(s.begin(), s.end(), words_regex);
+    std::regex_iterator<std::string::iterator> end;
+    std::vector<std::string>                   matches;
+    std::vector<Location>                      locations;
+    uint                                       matched_length = 0;
+    while(iter != end) {
+        matches.push_back(iter->str()); // Store the matched substring in the vector
+        matched_length += iter->str().length();
+        locations.push_back(Location(loc.line, loc.column + matched_length, loc.file));
+        ++iter;
+    }
+    if(matched_length != s.length()) {
+        LOG_ERROR("Error generating operator lexemes");
+        LOG_ERROR("Matched length: " << matched_length);
+        LOG_ERROR("Actual length: " << s.length() << "String: " << s);
+        LOG_ERROR("Throwing...");
+        throw std::runtime_error("Error generating operator lexemes");
+    }
+    std::vector<std::tuple<Lexeme, Location>> lexemes;
+    for(size_t i = 0; i < matches.size(); i++) {
+        std::string match = matches[i];
+        Location    loc   = locations[i];
+        Lexeme      lexeme(match);
+        lexemes.push_back(std::make_tuple(lexeme, loc));
+    }
+    return lexemes;
+}
+
+bool is_operator(int ch) {
+    std::vector<char> single_ops = {
+        '+', '-', '*', '/', '%', '=', '!', '&', '|',  '^',
+        '<', '>', '(', ')', '[', ']', '{', '}', '\'',
+    };
+    return (std::find(single_ops.begin(), single_ops.end(), ch) != single_ops.end());
 }
 
 std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file) {
@@ -302,38 +374,38 @@ std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file) {
                 break;
 
             case LexerStates::Operator:
-                if(is_double_operator(accumulator)) {
+                if(is_operator(ch)) {
                     lsm.state = LexerStates::Operator;
-                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
-                    accumulator = ch;
+                    accumulator += ch;
                 }
-                // else if(is_operator(ch)) { // Fallback for weirder operators?
-                //     lsm.state = LexerStates::Operator;
-                //     accumulator += ch;
-                // }
                 else if(ch == ' ' || ch == '\n' || ch == '\t') {
-                    lsm.state = LexerStates::Space;
-                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    lsm.state       = LexerStates::Space;
+                    auto op_lexemes = generate_operator_lexemes(accumulator, location);
+                    lexemes.insert(lexemes.end(), op_lexemes.begin(), op_lexemes.end());
                     accumulator = ch;
                 }
                 else if(std::isdigit(ch) || ch == '.') {
-                    lsm.state = LexerStates::Number;
-                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    lsm.state       = LexerStates::Number;
+                    auto op_lexemes = generate_operator_lexemes(accumulator, location);
+                    lexemes.insert(lexemes.end(), op_lexemes.begin(), op_lexemes.end());
                     accumulator = ch;
                 }
                 else if(std::isalpha(ch) || ch == '_') {
-                    lsm.state = LexerStates::Word;
-                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    lsm.state       = LexerStates::Word;
+                    auto op_lexemes = generate_operator_lexemes(accumulator, location);
+                    lexemes.insert(lexemes.end(), op_lexemes.begin(), op_lexemes.end());
                     accumulator = ch;
                 }
                 else if(ch == '#') {
-                    lsm.state = LexerStates::Comment;
-                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    lsm.state       = LexerStates::Comment;
+                    auto op_lexemes = generate_operator_lexemes(accumulator, location);
+                    lexemes.insert(lexemes.end(), op_lexemes.begin(), op_lexemes.end());
                     accumulator = ch;
                 }
                 else {
-                    lsm.state = LexerStates::Other;
-                    lexemes.push_back(std::make_tuple(Lexeme(accumulator), location));
+                    lsm.state       = LexerStates::Other;
+                    auto op_lexemes = generate_operator_lexemes(accumulator, location);
+                    lexemes.insert(lexemes.end(), op_lexemes.begin(), op_lexemes.end());
                     accumulator = ch;
                 }
                 break;
