@@ -1,0 +1,10 @@
+func return_powers(x : i32) -> (i32, i32) {
+    return ((x * x), (x * x * x));
+}
+
+func main() {
+    let aa : i32 = 4;
+    let (bb, cc) : (i32, i32) = return_powers(aa);
+    print(bb);
+    print(cc);
+}
