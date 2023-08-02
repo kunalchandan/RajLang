@@ -18,6 +18,7 @@ enum ASTNodeType {
     Function,
     Type,
     Argument,
+    Return,
 
     Expression, // e.g x = 1 + 2
     Declaration, // e.g x : i32
@@ -32,14 +33,14 @@ public:
     std::string _style = "filled";
 
     ASTNode();
-    ASTNode(ASTNodeType type, std::string name, Location location);
-    std::string _get_graph_color();
+    ASTNode(ASTNodeType type, std::string name, const Location& location);
+    [[nodiscard]] std::string _get_graph_color() const;
     ~ASTNode();
 };
 
 class ASTEdge {
 public:
-    std::string name = "";
+    std::string name;
 };
 
 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS, ASTNode, ASTEdge>

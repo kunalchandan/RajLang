@@ -20,7 +20,7 @@ public:
     std::string           raw_document;
 
     SourceCode();
-    SourceCode(std::filesystem::path filename, std::string content);
+    SourceCode(const std::filesystem::path& filename, std::string content);
     ~SourceCode();
 };
 
@@ -35,14 +35,13 @@ enum class LexerStates {
 
 enum class LexemeClass {
     Space, // e.g. \t
-    NewLine, // e.g. \n
 
     Comment, // e.g. // this is a comment
 
     Identifier, // e.g. banana
     Declaration, // let
     Assignment, // =
-    Conditional, // if, else, ?
+    Conditional, // if, else, ternary: ?
     Return, // return
 
     IntegerLiteral, // e.g. 153
@@ -84,11 +83,10 @@ public:
     LexemeClass lexeme_type;
     std::string tokens;
     Lexeme();
-    Lexeme(std::string tokens);
+    explicit Lexeme(std::string tokens);
     ~Lexeme();
     bool operator==(const Lexeme& rhs) const {
-        return rhs.lexeme_type == this->lexeme_type;
-        return rhs.tokens == this->tokens;
+        return (rhs.lexeme_type == this->lexeme_type) && (rhs.tokens == this->tokens);
     }
 };
 
@@ -98,12 +96,12 @@ public:
     size_t                column;
     std::filesystem::path file;
     Location();
-    Location(size_t line, size_t column, std::string file);
+    Location(size_t line, size_t column, const std::string& file);
     ~Location();
     friend std::ostream& operator<<(std::ostream& os, const Location& loc);
 };
 
 std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file);
-std::vector<SourceCode> read_raw_file(std::vector<std::filesystem::path> filepaths);
+std::vector<SourceCode> read_raw_file(const std::vector<std::filesystem::path>& file_paths);
 std::vector<std::tuple<Lexeme, Location>>
 filter_spaces(std::vector<std::tuple<Lexeme, Location>> lexemes);
