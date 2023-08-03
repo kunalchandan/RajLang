@@ -1,4 +1,5 @@
 #include "AST.hpp"
+#include "magic_enum.hpp"
 
 ASTNode::ASTNode() {
     this->node_type = ASTNodeType::Root;
@@ -29,12 +30,21 @@ std::string ASTNode::_get_graph_color() const {
         return "#e278e6";
     case ASTNodeType::Type:
         return "#47dfb9";
-        break;
+    case ASTNodeType::Return:
+        return "#b9e2b9";
     }
     return "white";
 }
 
 ASTNode::~ASTNode() = default;
+
+void error_wrong_token(const Location& location, const Lexeme& recieved_lexeme, const LexemeClass expected_type) noexcept {
+    LOG_ERROR("Expected " << magic_enum::enum_name(expected_type)
+                          << " in argument, received " << recieved_lexeme.tokens
+                          << " of type "
+                          << magic_enum::enum_name(recieved_lexeme.lexeme_type) << " at "
+                          << location)
+}
 
 void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
     LOG_INFO("Generating AST")
@@ -56,12 +66,14 @@ void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
             // Consume the following tokens that we expect
             // Identifier
             // ParenL
-            // Arbitrsty number of arguments and types separated by Commas
+            // Arbitrary number of arguments and types separated by Commas
             // ParenR
             // RightArrow
+            // CurlL
 
-            Tree::vertex_descriptor function_node        = boost::add_vertex(ast);
-            Lexeme                  expecting_identifier = std::get<0>(lexemes[x + 1]);
+            Tree::vertex_descriptor function_node = boost::add_vertex(ast);
+
+            Lexeme expecting_identifier = std::get<0>(lexemes[x + 1]);
             if(expecting_identifier.lexeme_type != LexemeClass::Identifier) {
                 LOG_ERROR("Expected Identifier in argument, received "
                           << expecting_identifier.tokens << " of type "
@@ -69,6 +81,9 @@ void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
                           << std::get<1>(lexemes[x + 1]))
                 return; // Could generate something random?
             }
+            boost::add_edge(scope_stack.top(), function_node, ast);
+            ast[function_node] = ASTNode(ASTNodeType::Function, expecting_identifier.tokens, loc);
+
             Lexeme expecting_parenL = std::get<0>(lexemes[x + 2]);
             if(expecting_parenL.lexeme_type != LexemeClass::ParenL) {
                 LOG_ERROR("Expected ParenL in argument, received "
@@ -101,10 +116,7 @@ void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
                 // Comma
                 Lexeme expecting_identifier_arg = std::get<0>(lexemes[p]);
                 if(expecting_identifier_arg.lexeme_type != LexemeClass::Identifier) {
-                    LOG_ERROR("Expected Identifier in argument, received "
-                              << expecting_identifier_arg.tokens << " of type "
-                              << magic_enum::enum_name(expecting_identifier_arg.lexeme_type)
-                              << " at " << std::get<1>(lexemes[p]))
+                    error_wrong_token(std::get<1>(lexemes[p]), expecting_identifier_arg, LexemeClass::Identifier);
                     return;
                 }
                 Lexeme expecting_colon = std::get<0>(lexemes[p + 1]);
@@ -153,16 +165,72 @@ void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
                 ast[type_node]        = ASTNode(ASTNodeType::Type, type_name, loc);
             }
 
-            boost::add_edge(scope_stack.top(), function_node, ast);
-            ast[function_node] = ASTNode(ASTNodeType::Function, expecting_identifier.tokens, loc);
-            // ast[function_node].name = expecting_identifier.tokens;
+            // Get the return type and add it to the graph
+            size_t location_return_rightArrow = location_parenR - lexemes.begin() + 1;
+            Lexeme expecting_right_arrow      = std::get<0>(lexemes[location_return_rightArrow]);
+            if(expecting_right_arrow.lexeme_type == LexemeClass::RightArrow) {
+                size_t location_return_parenL = location_parenR - lexemes.begin() + 2;
+                Lexeme expecting_return_type  = std::get<0>(lexemes[location_return_parenL]);
+                // TODO:: should validate that we have a return statement
+                if(expecting_return_type.lexeme_type == LexemeClass::ParenL) {
+                    // TODO:: Parse return value types, arbitrary number
+                }
+                else if(expecting_return_type.lexeme_type == LexemeClass::FloatType ||
+                        expecting_return_type.lexeme_type == LexemeClass::IntegerType ||
+                        expecting_return_type.lexeme_type == LexemeClass::UIntegerType) {
+                    // Single return type
+                    Location loc_return_type = std::get<1>(lexemes[location_return_parenL]);
+                    Tree::vertex_descriptor return_type = boost::add_vertex(ast);
+                    boost::add_edge(function_node, return_type, ast);
+                    ast[return_type] =
+                        ASTNode(ASTNodeType::Return, expecting_return_type.tokens, loc_return_type);
+                    LOG_DEBUG("Adding single return type in " << ast[function_node].name)
+                }
+                else {
+                    LOG_ERROR("Expected type or ParenL after arguments, received "
+                              << expecting_identifier.tokens << " of type "
+                              << magic_enum::enum_name(expecting_identifier.lexeme_type) << " at "
+                              << std::get<1>(lexemes[location_return_parenL]))
+                    return;
+                }
+            }
+            else if(expecting_right_arrow.lexeme_type == LexemeClass::CurlL) {
+                // Implies that the return type is void
+                Tree::vertex_descriptor return_type = boost::add_vertex(ast);
+                boost::add_edge(function_node, return_type, ast);
+                // void return type put location of curlL
+                ast[return_type] = ASTNode(
+                    ASTNodeType::Return, "void", std::get<1>(lexemes[location_return_rightArrow]));
+            }
+            else {
+                LOG_ERROR("Expected RightArrow '->' after arguments, received "
+                          << expecting_right_arrow.tokens << " of type "
+                          << magic_enum::enum_name(expecting_right_arrow.lexeme_type) << " at "
+                          << std::get<1>(lexemes[location_return_rightArrow]))
+                return;
+            }
 
+            auto location_curlL =
+                std::find_if(lexemes.begin() + location_return_rightArrow,
+                             lexemes.end(),
+                             [](const std::tuple<Lexeme, Location>& x) {
+                                 return std::get<0>(x).lexeme_type == LexemeClass::CurlL;
+                             });
+            x = location_curlL - lexemes.begin();
             scope_stack.push(function_node);
         }
         else if(lexeme.lexeme_type == LexemeClass::CurlR) {
             scope_stack.pop();
         }
         else if(lexeme.lexeme_type == LexemeClass::Identifier) {
+        }
+        else if(lexeme.lexeme_type == LexemeClass::CurlL) {
+            vertex_t anonymous_scope = boost::add_vertex(ast);
+            boost::add_edge(scope_stack.top(), anonymous_scope, ast);
+            std::string scope_name = loc.file.filename().string() + "_" + std::to_string(loc.line) +
+                                     std::to_string(loc.column);
+            ast[anonymous_scope] = ASTNode(ASTNodeType::Function, scope_name, loc);
+            scope_stack.push(anonymous_scope);
         }
     }
     // for(auto vd : boost::make_iterator_range(vertices(ast))) {
