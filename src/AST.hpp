@@ -32,10 +32,12 @@ public:
     Location    location;
     std::string _color;
     std::string _style = "filled";
+    std::string _shape;
 
     ASTNode();
     ASTNode(ASTNodeType type, std::string name, const Location& location);
     [[nodiscard]] std::string _get_graph_color() const;
+    [[nodiscard]] std::string _get_graph_shape() const;
     ~ASTNode();
 };
 

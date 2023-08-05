@@ -1,5 +1,4 @@
 #include "AST.hpp"
-#include "magic_enum.hpp"
 
 ASTNode::ASTNode() {
     this->node_type = ASTNodeType::Root;
@@ -13,6 +12,7 @@ ASTNode::ASTNode(ASTNodeType type, std::string name, const Location& location) {
     this->name      = std::move(name);
     this->location  = location;
     this->_color    = _get_graph_color();
+    this->_shape    = _get_graph_shape();
 }
 
 std::string ASTNode::_get_graph_color() const {
@@ -21,7 +21,7 @@ std::string ASTNode::_get_graph_color() const {
     case ASTNodeType::Root:
         return "#000000";
     case ASTNodeType::Function:
-        return "#6496E1";
+        return "#84B6FF";
     case ASTNodeType::Declaration:
         return "#96c57a";
     case ASTNodeType::Expression:
@@ -36,15 +36,27 @@ std::string ASTNode::_get_graph_color() const {
     return "white";
 }
 
-ASTNode::~ASTNode() = default;
-
-void error_wrong_token(const Location& location, const Lexeme& recieved_lexeme, const LexemeClass expected_type) noexcept {
-    LOG_ERROR("Expected " << magic_enum::enum_name(expected_type)
-                          << " in argument, received " << recieved_lexeme.tokens
-                          << " of type "
-                          << magic_enum::enum_name(recieved_lexeme.lexeme_type) << " at "
-                          << location)
+std::string ASTNode::_get_graph_shape() const {
+    // Pick some shapes
+    switch(this->node_type) {
+    case ASTNodeType::Root:
+        return "ellipse";
+    case ASTNodeType::Function:
+        return "signature";
+    case ASTNodeType::Declaration:
+        return "component";
+    case ASTNodeType::Expression:
+        return "rect";
+    case ASTNodeType::Argument:
+        return "component";
+    case ASTNodeType::Type:
+        return "invhouse";
+    case ASTNodeType::Return:
+        return "rarrow";
+    }
+    return "ellipse";
 }
+ASTNode::~ASTNode() = default;
 
 void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
     LOG_INFO("Generating AST")
@@ -116,7 +128,10 @@ void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
                 // Comma
                 Lexeme expecting_identifier_arg = std::get<0>(lexemes[p]);
                 if(expecting_identifier_arg.lexeme_type != LexemeClass::Identifier) {
-                    error_wrong_token(std::get<1>(lexemes[p]), expecting_identifier_arg, LexemeClass::Identifier);
+                    LOG_ERROR("Expected Identifier in argument, received "
+                              << expecting_identifier_arg.tokens << " of type "
+                              << magic_enum::enum_name(expecting_identifier_arg.lexeme_type)
+                              << " at " << std::get<1>(lexemes[p]))
                     return;
                 }
                 Lexeme expecting_colon = std::get<0>(lexemes[p + 1]);
@@ -246,6 +261,7 @@ void generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes) {
     dp.property("label", boost::get(&ASTEdge::name, ast));
     dp.property("fillcolor", boost::get(&ASTNode::_color, ast));
     dp.property("style", boost::get(&ASTNode::_style, ast));
+    dp.property("shape", boost::get(&ASTNode::_shape, ast));
     write_graphviz_dp(outFile, ast, dp);
     outFile.close();
     LOG_INFO("AST Graph in tree_visualization.dot")
