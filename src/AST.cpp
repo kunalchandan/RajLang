@@ -238,7 +238,7 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> 
             // TODO
             // assume (map | array | func) are at top
             auto top = type_tree[type_stack.top()];
-            top      = ASTNode(ASTNodeClass::Type, ASTNodeSubType::, "Anon Tuple", loc);
+            top      = ASTNode(ASTNodeClass::Type, ASTNodeSubType::none, "Anon Tuple", loc);
         }
         else if(lexeme.lexeme_type == LexemeClass::Comma) {
             // Do nothing
