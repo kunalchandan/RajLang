@@ -8,9 +8,13 @@
 #include <vector>
 
 #include "Lexer.hpp"
+#include "logging.hpp"
 
 SourceCode::SourceCode() {
     LOG_INFO("Initializing Null Source Code")
+    LOG_WARNING(
+        "If creating a null Source Code, ensure you append a newline character to the end of the "
+        "raw document. This is required for the lexer to properly tokenize the document.")
     this->path         = "/null/path";
     this->raw_document = "";
 }
@@ -203,7 +207,8 @@ std::string generate_regex_from_strings(const std::vector<std::string>& strings)
     return regexStr;
 }
 
-std::vector<std::tuple<Lexeme, Location>> generate_operator_lexemes(std::string s, const Location& loc) {
+std::vector<std::tuple<Lexeme, Location>> generate_operator_lexemes(std::string     s,
+                                                                    const Location& loc) {
     std::vector<std::string> ops = {
         // Order matters here preference is given to the first string
         "||", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "%=", "&&",
@@ -250,7 +255,7 @@ bool is_operator(int ch) {
 
 std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file) {
     std::vector<std::tuple<Lexeme, Location>> lexemes;
-    LexingStateMachine                        lsm         = LexingStateMachine();
+    LexingStateMachine                        lsm = LexingStateMachine();
     std::string                               accumulator;
 
     size_t line_number   = 1;

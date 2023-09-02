@@ -51,6 +51,8 @@ enum class LexemeClass {
     UIntegerType, // e.g. u1, u8, u16, u32, u64
     FloatType, // e.g. f32, f64
     Function, // e.g. func
+    Array, // e.g. func
+    Map, // e.g. func
 
     SemiColon, // ;
     Colon, // :

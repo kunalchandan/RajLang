@@ -1,5 +1,6 @@
 #pragma once
 
+#include "magic_enum.hpp"
 #include <iostream>
 
 // Logging levels
@@ -26,3 +27,5 @@ constexpr char ANSI_CYAN[]   = "\x1B[36m";
 #define LOG_ERROR(msg)                                                                             \
     if(currentLogLevel <= LogLevel::ERROR)                                                         \
         std::cerr << ANSI_RED << "[ERROR] " << msg << ANSI_RESET << std::endl;
+
+#define ename(em) magic_enum::enum_name(em)
