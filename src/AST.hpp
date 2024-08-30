@@ -86,5 +86,6 @@ typedef boost::graph_traits<Tree>::edge_descriptor   edge_t;
 void draw_graph(Tree ast);
 
 std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> type_lexemes,
+                                      std::stack<vertex_t>                      type_stack,
                                       Location                                  root_location);
 Tree                       generate_ast(std::vector<std::tuple<Lexeme, Location>> lexemes);

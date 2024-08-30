@@ -1,9 +1,12 @@
 #include "AST.hpp"
 #include "Lexer.hpp"
 #include "logging.hpp"
+#include <boost/assert/source_location.hpp>
 #include <boost/graph/detail/adjacency_list.hpp>
 #include <boost/graph/subgraph.hpp>
 #include <stack>
+#include <tuple>
+#include <vector>
 
 ASTNode::ASTNode() {
     this->node_class = ASTNodeClass::Root;
@@ -68,9 +71,10 @@ std::string ASTNode::_get_graph_shape() const {
 ASTNode::~ASTNode() = default;
 
 std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> type_lexemes,
+                                      std::stack<vertex_t>                      type_stack,
                                       Location                                  root_location) {
-    // returns type tree and reference to root node
-    // Expecting a sequence of lexemes that look like any of the following examples:
+    /// returns type tree and reference to root node
+    /// Expecting a sequence of lexemes that look like any of the following examples:
     // i32
     // f64
     // array<i32>
@@ -81,13 +85,12 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> 
     // (array<i32>, map<i32, i32>)
     // func<i32, f32> -> f32
     // func<i32, f32> -> (i32, f32)
-    Tree     type_tree;
-    vertex_t type_root = boost::add_vertex(type_tree);
-    type_tree[type_root] =
-        ASTNode(ASTNodeClass::Type, ASTNodeSubType::none, "UndefinedType", root_location);
+    Tree type_tree = Tree();
+    // vertex_t type_root = boost::add_vertex(type_tree);
+    // type_tree[type_root] =
+    //     ASTNode(ASTNodeClass::Type, ASTNodeSubType::none, "UndefinedType", root_location);
 
-    std::stack<vertex_t> type_stack;
-    type_stack.push(type_root);
+    LOG_DEBUG("Calling Parse_type " << ename(std::get<0>(type_lexemes[0]).lexeme_type))
     for(size_t i = 0; i < type_lexemes.size(); i++) {
         Lexeme   lexeme = std::get<0>(type_lexemes[i]);
         Location loc    = std::get<1>(type_lexemes[i]);
@@ -101,128 +104,126 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> 
             type_stack.pop();
         }
         else if(lexeme.lexeme_type == LexemeClass::FloatType) {
-            if(type_tree[type_stack.top()].node_class == ASTNodeClass::Type &&
-               type_tree[type_stack.top()].sub_type == ASTNodeSubType::none) {
-                // Replace Undefined Type with this type
-                if(lexeme.tokens == "f32") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::f32;
-                }
-                else if(lexeme.tokens == "f64") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::f64;
-                }
-                type_tree[type_stack.top()].name     = lexeme.tokens;
-                type_tree[type_stack.top()].location = loc;
+            // Add child
+            vertex_t float_type = boost::add_vertex(type_tree);
+            if(lexeme.tokens == "f32") {
+                type_tree[type_stack.top()].sub_type = ASTNodeSubType::f32;
+            }
+            else if(lexeme.tokens == "f64") {
+                type_tree[type_stack.top()].sub_type = ASTNodeSubType::f64;
+            }
+            type_tree[float_type].name       = lexeme.tokens;
+            type_tree[float_type].node_class = ASTNodeClass::Type;
+            type_tree[float_type].location   = loc;
+            if(!type_stack.empty()) {
+                boost::add_edge(type_stack.top(), float_type, type_tree);
             }
             else {
-                // Add child
-                vertex_t float_type = boost::add_vertex(type_tree);
-                if(lexeme.tokens == "f32") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::f32;
-                }
-                else if(lexeme.tokens == "f64") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::f64;
-                }
-                type_tree[float_type].name       = lexeme.tokens;
-                type_tree[float_type].node_class = ASTNodeClass::Type;
-                type_tree[float_type].location   = loc;
-                boost::add_edge(type_stack.top(), float_type, type_tree);
+                type_stack.push(float_type);
             }
         }
         else if(lexeme.lexeme_type == LexemeClass::IntegerType) {
-            if(type_tree[type_stack.top()].node_class == ASTNodeClass::Type &&
-               type_tree[type_stack.top()].sub_type == ASTNodeSubType::none) {
-                // Replace Undefined Type with this type
-                if(lexeme.tokens == "i8") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::i8;
-                }
-                else if(lexeme.tokens == "i16") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::i16;
-                }
-                else if(lexeme.tokens == "i32") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::i32;
-                }
-                else if(lexeme.tokens == "i64") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::i64;
-                }
-                else if(lexeme.tokens == "i128") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::i128;
-                }
-                type_tree[type_stack.top()].name     = lexeme.tokens;
-                type_tree[type_stack.top()].location = loc;
+            // Add child
+            vertex_t integer_type = boost::add_vertex(type_tree);
+            if(lexeme.tokens == "i8") {
+                type_tree[type_stack.top()].sub_type = ASTNodeSubType::i8;
+            }
+            else if(lexeme.tokens == "i16") {
+                type_tree[type_stack.top()].sub_type = ASTNodeSubType::i16;
+            }
+            else if(lexeme.tokens == "i32") {
+                type_tree[type_stack.top()].sub_type = ASTNodeSubType::i32;
+            }
+            else if(lexeme.tokens == "i64") {
+                type_tree[type_stack.top()].sub_type = ASTNodeSubType::i64;
+            }
+            else if(lexeme.tokens == "i128") {
+                type_tree[type_stack.top()].sub_type = ASTNodeSubType::i128;
+            }
+            type_tree[integer_type].name       = lexeme.tokens;
+            type_tree[integer_type].node_class = ASTNodeClass::Type;
+            type_tree[integer_type].location   = loc;
+            if(!type_stack.empty()) {
+                boost::add_edge(type_stack.top(), integer_type, type_tree);
             }
             else {
-                // Add child
-                vertex_t integer_type = boost::add_vertex(type_tree);
-                if(lexeme.tokens == "i8") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::i8;
-                }
-                else if(lexeme.tokens == "i16") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::i16;
-                }
-                else if(lexeme.tokens == "i32") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::i32;
-                }
-                else if(lexeme.tokens == "i64") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::i64;
-                }
-                else if(lexeme.tokens == "i128") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::i128;
-                }
-                type_tree[integer_type].name       = lexeme.tokens;
-                type_tree[integer_type].node_class = ASTNodeClass::Type;
-                type_tree[integer_type].location   = loc;
-                boost::add_edge(type_stack.top(), integer_type, type_tree);
+                type_stack.push(integer_type);
             }
         }
         else if(lexeme.lexeme_type == LexemeClass::UIntegerType) {
-            if(type_tree[type_stack.top()].node_class == ASTNodeClass::Type &&
-               type_tree[type_stack.top()].sub_type == ASTNodeSubType::none) {
-                // Replace Undefined Type with this type
-                if(lexeme.tokens == "u8") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::u8;
-                }
-                else if(lexeme.tokens == "u16") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::u16;
-                }
-                else if(lexeme.tokens == "u32") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::u32;
-                }
-                else if(lexeme.tokens == "u64") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::u64;
-                }
-                else if(lexeme.tokens == "u128") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::u128;
-                }
-                type_tree[type_stack.top()].name     = lexeme.tokens;
-                type_tree[type_stack.top()].location = loc;
+            // Add child
+            vertex_t integer_type = boost::add_vertex(type_tree);
+            if(lexeme.tokens == "u8") {
+                type_tree[type_stack.top()].sub_type = ASTNodeSubType::u8;
+            }
+            else if(lexeme.tokens == "u16") {
+                type_tree[type_stack.top()].sub_type = ASTNodeSubType::u16;
+            }
+            else if(lexeme.tokens == "u32") {
+                type_tree[type_stack.top()].sub_type = ASTNodeSubType::u32;
+            }
+            else if(lexeme.tokens == "u64") {
+                type_tree[type_stack.top()].sub_type = ASTNodeSubType::u64;
+            }
+            else if(lexeme.tokens == "u128") {
+                type_tree[type_stack.top()].sub_type = ASTNodeSubType::u128;
+            }
+            type_tree[integer_type].name       = lexeme.tokens;
+            type_tree[integer_type].node_class = ASTNodeClass::Type;
+            type_tree[integer_type].location   = loc;
+            if(!type_stack.empty()) {
+                boost::add_edge(type_stack.top(), integer_type, type_tree);
             }
             else {
-                // Add child
-                vertex_t integer_type = boost::add_vertex(type_tree);
-                if(lexeme.tokens == "u8") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::u8;
-                }
-                else if(lexeme.tokens == "u16") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::u16;
-                }
-                else if(lexeme.tokens == "u32") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::u32;
-                }
-                else if(lexeme.tokens == "u64") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::u64;
-                }
-                else if(lexeme.tokens == "u128") {
-                    type_tree[type_stack.top()].sub_type = ASTNodeSubType::u128;
-                }
-                type_tree[integer_type].name       = lexeme.tokens;
-                type_tree[integer_type].node_class = ASTNodeClass::Type;
-                type_tree[integer_type].location   = loc;
-                boost::add_edge(type_stack.top(), integer_type, type_tree);
+                type_stack.push(integer_type);
             }
         }
         else if(lexeme.lexeme_type == LexemeClass::Array) {
             // TODO
             // Recursive call after <
+            vertex_t array_type              = boost::add_vertex(type_tree);
+            type_tree[array_type].name       = lexeme.tokens;
+            type_tree[array_type].node_class = ASTNodeClass::Type;
+            type_tree[array_type].sub_type   = ASTNodeSubType::array;
+            type_tree[array_type].location   = loc;
+            if(!type_stack.empty()) {
+                // LOG_DEBUG("type_stack" << type_stack.top() << " s " << array_type)
+                boost::add_edge(type_stack.top(), array_type, type_tree);
+            }
+            else {
+                type_stack.push(array_type);
+            }
+            // assert that the next one is a <
+            if(std::get<0>(type_lexemes[i + 1]).lexeme_type != LexemeClass::ABrackL) {
+                throw BaseException(
+                    loc.file, loc.line, loc.column, "Token after 'array' is not '<'");
+            }
+            int matching_brack = 0; // Store the altitude of brackets, then return index
+            for(size_t h_i = i + 1; h_i < type_lexemes.size(); h_i++) {
+                LOG_DEBUG("    " << ename(std::get<0>(type_lexemes[h_i]).lexeme_type) << "\t"
+                                 << h_i)
+
+                if(std::get<0>(type_lexemes[h_i]).lexeme_type == LexemeClass::ABrackL) {
+                    matching_brack += 1;
+                }
+                else if(std::get<0>(type_lexemes[h_i]).lexeme_type == LexemeClass::ABrackR) {
+                    matching_brack -= 1;
+                }
+                if(matching_brack == 0) {
+                    matching_brack = h_i;
+                    break;
+                }
+                if(h_i == type_lexemes.size()) {
+                    throw BaseException(boost::source_location(), "Cannot find matching '>'");
+                }
+            }
+            auto subtype = std::vector<std::tuple<Lexeme, Location>>(
+                type_lexemes.begin() + i + 1, type_lexemes.begin() + matching_brack + 1);
+            LOG_DEBUG("recursive call made for "
+                      << "[" << i + 1 << ", " << matching_brack << "]")
+            std::tuple<Tree, vertex_t> parsed_subtree =
+                parse_type(subtype, type_stack, root_location);
+            // boost::add_edge(array_type, std::get<1>(parsed_subtree), type_tree);
         }
         else if(lexeme.lexeme_type == LexemeClass::Map) {
             // TODO
@@ -237,25 +238,27 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> 
         else if(lexeme.lexeme_type == LexemeClass::ABrackL) {
             // TODO
             // assume (map | array | func) are at top
-            auto top = type_tree[type_stack.top()];
-            top      = ASTNode(ASTNodeClass::Type, ASTNodeSubType::none, "Anon Tuple", loc);
+            // vertex_t tuple              = boost::add_vertex(type_tree);
+            // type_tree[tuple].name       = "AnonTypeTuple";
+            // type_tree[tuple].node_class = ASTNodeClass::Type;
+            // type_tree[tuple].sub_type   = ASTNodeSubType::tuple;
+            // type_tree[tuple].location   = loc;
+
+            // if(!type_stack.empty()) {
+            //     boost::add_edge(type_stack.top(), tuple, type_tree);
+            // }
+            // else {
+            //     type_stack.push(tuple);
+            // }
+            // LOG_DEBUG("abrack l parse")
+            // top = ASTNode(ASTNodeClass::Type, ASTNodeSubType::none, "Anon Tuple", loc);
         }
         else if(lexeme.lexeme_type == LexemeClass::Comma) {
             // Do nothing
         }
     }
 
-    // for(size_t i = 0; i < type_lexemes.size(); i++) {
-    //     Lexeme lexeme   = std::get<0>(type_lexemes[i]);
-    //     auto   children = boost::adjacent_vertices(type_root, type_tree);
-    //     boost::graph_traits<Tree>::adjacency_iterator start;
-    //     boost::graph_traits<Tree>::adjacency_iterator end;
-    //     boost::tie(start, end) = boost::adjacent_vertices(child, type_tree);
-    //     for(; start != end; ++start) {
-    //         std::cout << "adjacent vertex " << type_tree[*start].name << std::endl;
-    //     }
-    // }
-    return std::tuple(type_tree, type_root);
+    return std::tuple(type_tree, type_stack.top());
 }
 
 [[nodiscard]] size_t ast_gen_function(Tree&                                      ast,
@@ -432,6 +435,7 @@ void draw_graph(Tree ast) {
     LOG_INFO("AST Generated")
     std::ofstream             outFile("tree_visualization.dot");
     boost::dynamic_properties dp;
+
     dp.property("label", boost::get(&ASTNode::name, ast));
     dp.property("node_id", boost::get(boost::vertex_index, ast));
     dp.property("label", boost::get(&ASTEdge::name, ast));
