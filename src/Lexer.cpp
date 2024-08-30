@@ -1,3 +1,4 @@
+#include <boost/assert/source_location.hpp>
 #include <iostream>
 #include <regex>
 #include <string>
@@ -115,6 +116,9 @@ Lexeme::Lexeme(std::string tokens) {
     else if(tokens == "func") {
         this->lexeme_type = LexemeClass::Function;
     }
+    else if(tokens == "array") {
+        this->lexeme_type = LexemeClass::Array;
+    }
     else if(tokens == "return") {
         this->lexeme_type = LexemeClass::Return;
     }
@@ -150,6 +154,14 @@ Location::Location(size_t line, size_t column, const std::string& file) {
     this->line   = line;
     this->column = column;
     this->file   = file;
+}
+
+std::string Location::to_string() {
+    return this->file.string() + ":" + std::to_string(this->line) + ":" +
+           std::to_string(this->column);
+}
+boost::source_location Location::to_boost_source_location() {
+    return boost::source_location(this->file.c_str(), this->line, "undefined", this->column);
 }
 
 std::ostream& operator<<(std::ostream& os, const Location& loc) {
@@ -412,7 +424,7 @@ std::vector<std::tuple<Lexeme, Location>> lex_file(SourceCode file) {
                     accumulator = ch;
                 }
                 break;
-            case LexerStates::Other:
+            case LexerStates::Other: // Default state or undefined state
                 if(ch == ' ' || ch == '\n' || ch == '\t') {
                     lsm.state = LexerStates::Space;
                     lexemes.emplace_back(Lexeme(accumulator), location);

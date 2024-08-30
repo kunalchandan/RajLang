@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <boost/assert/source_location.hpp>
 #include <filesystem>
 #include <fstream>
 
@@ -99,6 +100,8 @@ public:
     std::filesystem::path file;
     Location();
     Location(size_t line, size_t column, const std::string& file);
+    std::string            to_string();
+    boost::source_location to_boost_source_location();
     ~Location();
     friend std::ostream& operator<<(std::ostream& os, const Location& loc);
 };
