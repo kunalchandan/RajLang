@@ -70,9 +70,10 @@ std::string ASTNode::_get_graph_shape() const {
 }
 ASTNode::~ASTNode() = default;
 
-std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> type_lexemes,
-                                      std::stack<vertex_t>                      type_stack,
-                                      Location                                  root_location) {
+std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>>& type_lexemes,
+                                      std::stack<vertex_t>&                      type_stack,
+                                      Tree&                                      type_tree,
+                                      Location                                   root_location) {
     /// returns type tree and reference to root node
     /// Expecting a sequence of lexemes that look like any of the following examples:
     // i32
@@ -85,10 +86,6 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> 
     // (array<i32>, map<i32, i32>)
     // func<i32, f32> -> f32
     // func<i32, f32> -> (i32, f32)
-    Tree type_tree = Tree();
-    // vertex_t type_root = boost::add_vertex(type_tree);
-    // type_tree[type_root] =
-    //     ASTNode(ASTNodeClass::Type, ASTNodeSubType::none, "UndefinedType", root_location);
 
     LOG_DEBUG("Calling Parse_type " << ename(std::get<0>(type_lexemes[0]).lexeme_type))
     for(size_t i = 0; i < type_lexemes.size(); i++) {
@@ -96,8 +93,12 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> 
         Location loc    = std::get<1>(type_lexemes[i]);
         if(lexeme.lexeme_type == LexemeClass::ParenL) {
             // push to stack
-            auto top = type_tree[type_stack.top()];
-            top      = ASTNode(ASTNodeClass::Type, ASTNodeSubType::tuple, "Anon Tuple", loc);
+            vertex_t tuple_type              = boost::add_vertex(type_tree);
+            type_tree[tuple_type].name       = lexeme.tokens;
+            type_tree[tuple_type].node_class = ASTNodeClass::Type;
+            type_tree[tuple_type].sub_type   = ASTNodeSubType::tuple;
+            type_tree[tuple_type].location   = loc;
+            type_stack.push(tuple_type);
         }
         else if(lexeme.lexeme_type == LexemeClass::ParenR) {
             // pop from stack
@@ -124,6 +125,9 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> 
         }
         else if(lexeme.lexeme_type == LexemeClass::IntegerType) {
             // Add child
+            LOG_DEBUG("Parse Int")
+            LOG_DEBUG(" " << ename(type_tree[type_stack.top()].sub_type))
+            LOG_DEBUG(" " << ename(type_tree[type_stack.top()].node_class))
             vertex_t integer_type = boost::add_vertex(type_tree);
             if(lexeme.tokens == "i8") {
                 type_tree[type_stack.top()].sub_type = ASTNodeSubType::i8;
@@ -179,7 +183,6 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> 
             }
         }
         else if(lexeme.lexeme_type == LexemeClass::Array) {
-            // TODO
             // Recursive call after <
             vertex_t array_type              = boost::add_vertex(type_tree);
             type_tree[array_type].name       = lexeme.tokens;
@@ -187,8 +190,6 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> 
             type_tree[array_type].sub_type   = ASTNodeSubType::array;
             type_tree[array_type].location   = loc;
             if(!type_stack.empty()) {
-                // LOG_DEBUG("type_stack" << type_stack.top() << " s " << array_type)
-                boost::add_edge(type_stack.top(), array_type, type_tree);
             }
             else {
                 type_stack.push(array_type);
@@ -222,8 +223,8 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> 
             LOG_DEBUG("recursive call made for "
                       << "[" << i + 1 << ", " << matching_brack << "]")
             std::tuple<Tree, vertex_t> parsed_subtree =
-                parse_type(subtype, type_stack, root_location);
-            // boost::add_edge(array_type, std::get<1>(parsed_subtree), type_tree);
+                parse_type(subtype, type_stack, type_tree, root_location);
+            boost::add_edge(array_type, std::get<1>(parsed_subtree), type_tree);
         }
         else if(lexeme.lexeme_type == LexemeClass::Map) {
             // TODO
@@ -236,21 +237,34 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>> 
             // recursive call
         }
         else if(lexeme.lexeme_type == LexemeClass::ABrackL) {
-            // TODO
             // assume (map | array | func) are at top
-            // vertex_t tuple              = boost::add_vertex(type_tree);
-            // type_tree[tuple].name       = "AnonTypeTuple";
-            // type_tree[tuple].node_class = ASTNodeClass::Type;
-            // type_tree[tuple].sub_type   = ASTNodeSubType::tuple;
-            // type_tree[tuple].location   = loc;
+            if((!type_stack.empty()) &&
+               (type_tree[type_stack.top()].sub_type == ASTNodeSubType::map ||
+                type_tree[type_stack.top()].sub_type == ASTNodeSubType::func ||
+                type_tree[type_stack.top()].sub_type == ASTNodeSubType::array)) {
+                LOG_DEBUG("ABrackL Not empty stack and child of [map|func|array] type " << i)
+                LOG_DEBUG("ABrackL child of " << ename(type_tree[type_stack.top()].sub_type)
+                                              << " Adding tuple "
+                                              << std::get<0>(type_lexemes[0]).tokens)
 
-            // if(!type_stack.empty()) {
-            //     boost::add_edge(type_stack.top(), tuple, type_tree);
-            // }
-            // else {
-            //     type_stack.push(tuple);
-            // }
-            // LOG_DEBUG("abrack l parse")
+                vertex_t tuple              = boost::add_vertex(type_tree);
+                type_tree[tuple].name       = "AnonTypeTuple";
+                type_tree[tuple].node_class = ASTNodeClass::Type;
+                type_tree[tuple].sub_type   = ASTNodeSubType::tuple;
+                type_tree[tuple].location   = loc;
+
+                type_stack.push(tuple);
+            }
+            else {
+                LOG_DEBUG("ABrackL start of AnonTupleTupe! " << i)
+                vertex_t tuple              = boost::add_vertex(type_tree);
+                type_tree[tuple].name       = "AnonTypeTuple";
+                type_tree[tuple].node_class = ASTNodeClass::Type;
+                type_tree[tuple].sub_type   = ASTNodeSubType::tuple;
+                type_tree[tuple].location   = loc;
+
+                type_stack.push(tuple);
+            }
             // top = ASTNode(ASTNodeClass::Type, ASTNodeSubType::none, "Anon Tuple", loc);
         }
         else if(lexeme.lexeme_type == LexemeClass::Comma) {
