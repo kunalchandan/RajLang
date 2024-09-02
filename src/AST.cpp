@@ -91,6 +91,7 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>>&
     for(size_t i = 0; i < type_lexemes.size(); i++) {
         Lexeme   lexeme = std::get<0>(type_lexemes[i]);
         Location loc    = std::get<1>(type_lexemes[i]);
+        LOG_INFO("  0> Adding " << ename(lexeme.lexeme_type) << " tokens " << lexeme.tokens)
         if(lexeme.lexeme_type == LexemeClass::ParenL) {
             // push to stack
             vertex_t tuple_type              = boost::add_vertex(type_tree);
@@ -189,11 +190,7 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>>&
             type_tree[array_type].node_class = ASTNodeClass::Type;
             type_tree[array_type].sub_type   = ASTNodeSubType::array;
             type_tree[array_type].location   = loc;
-            if(!type_stack.empty()) {
-            }
-            else {
-                type_stack.push(array_type);
-            }
+            type_stack.push(array_type);
             // assert that the next one is a <
             if(std::get<0>(type_lexemes[i + 1]).lexeme_type != LexemeClass::ABrackL) {
                 throw BaseException(
@@ -224,6 +221,7 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>>&
                       << "[" << i + 1 << ", " << matching_brack << "]")
             std::tuple<Tree, vertex_t> parsed_subtree =
                 parse_type(subtype, type_stack, type_tree, root_location);
+            i = matching_brack; // BEWARE: Skip to matching bracket after parsing
             boost::add_edge(array_type, std::get<1>(parsed_subtree), type_tree);
         }
         else if(lexeme.lexeme_type == LexemeClass::Map) {
@@ -242,18 +240,8 @@ std::tuple<Tree, vertex_t> parse_type(std::vector<std::tuple<Lexeme, Location>>&
                (type_tree[type_stack.top()].sub_type == ASTNodeSubType::map ||
                 type_tree[type_stack.top()].sub_type == ASTNodeSubType::func ||
                 type_tree[type_stack.top()].sub_type == ASTNodeSubType::array)) {
-                LOG_DEBUG("ABrackL Not empty stack and child of [map|func|array] type " << i)
-                LOG_DEBUG("ABrackL child of " << ename(type_tree[type_stack.top()].sub_type)
-                                              << " Adding tuple "
-                                              << std::get<0>(type_lexemes[0]).tokens)
-
-                vertex_t tuple              = boost::add_vertex(type_tree);
-                type_tree[tuple].name       = "AnonTypeTuple";
-                type_tree[tuple].node_class = ASTNodeClass::Type;
-                type_tree[tuple].sub_type   = ASTNodeSubType::tuple;
-                type_tree[tuple].location   = loc;
-
-                type_stack.push(tuple);
+                LOG_DEBUG("ABrackL Not empty stack and child of [map|func|array] type. "
+                          << ename(type_tree[type_stack.top()].sub_type))
             }
             else {
                 LOG_DEBUG("ABrackL start of AnonTupleTupe! " << i)
